@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DevVault — Личный инструментарий</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div id="auth-screen">
+  <div class="auth-box glass">
+    <div class="auth-header">
+      <div class="logo">🔐 DevVault</div>
+      <p class="subtitle">Защищённое хранилище инструментов</p>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="login">Вход</button>
+      <button class="tab" data-tab="register">Регистрация</button>
+    </div>
+    <form id="form-login">
+      <div class="field">
+        <label>Имя пользователя</label>
+        <input type="text" id="login-user" placeholder="username" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label>Мастер-пароль</label>
+        <input type="password" id="login-pass" placeholder="••••••••" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn-primary">Открыть хранилище</button>
+      <p id="login-error" class="error-msg"></p>
+    </form>
+    <form id="form-register" style="display:none">
+      <div class="field">
+        <label>Имя пользователя</label>
+        <input type="text" id="reg-user" placeholder="username" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label>Мастер-пароль</label>
+        <input type="password" id="reg-pass" placeholder="••••••••" required autocomplete="new-password">
+      </div>
+      <div class="field">
+        <label>Подтверждение</label>
+        <input type="password" id="reg-confirm" placeholder="••••••••" required autocomplete="new-password">
+      </div>
+      <button type="submit" class="btn-primary">Создать хранилище</button>
+      <p id="reg-error" class="error-msg"></p>
+    </form>
+  </div>
+</div>
+
+<div id="dashboard" style="display:none">
+  <header>
+    <div class="logo">🔐 DevVault</div>
+    <div class="user-area">
+      <span id="user-badge"></span>
+      <button id="btn-lock" class="btn-sm">🔒 Заблокировать</button>
+    </div>
+  </header>
+  <main>
+    <div class="toolbar">
+      <input type="text" id="search-input" placeholder="Поиск инструментов..." class="search-input">
+      <div class="categories" id="categories">
+        <button class="cat active" data-cat="all">Все</button>
+        <button class="cat" data-cat="text">Текст</button>
+        <button class="cat" data-cat="crypto">Крипто</button>
+        <button class="cat" data-cat="math">Математика</button>
+        <button class="cat" data-cat="time">Время</button>
+        <button class="cat" data-cat="data">Данные</button>
+        <button class="cat" data-cat="utility">Утилиты</button>
+      </div>
+    </div>
+    <div class="tools-grid" id="tools-grid"></div>
+  </main>
+</div>
+
+<div id="tool-modal" class="modal-overlay" style="display:none">
+  <div class="modal glass">
+    <div class="modal-header">
+      <h2 id="modal-title"></h2>
+      <button id="modal-close" class="btn-close">&times;</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
