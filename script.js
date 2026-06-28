@@ -3,7 +3,7 @@ const $ = id => document.getElementById(id);
 const qs = (s, ctx) => (ctx || document).querySelector(s);
 const qsa = (s, ctx) => (ctx || document).querySelectorAll(s);
 
-let STATE = { currentView: 'feed', currentFilter: 'new', currentPostId: null, currentCommunity: null };
+let STATE = { currentView: 'feed', currentFilter: 'new', currentDateRange: 'all', currentPostId: null, currentCommunity: null };
 
 /* Auth tabs */
 document.querySelectorAll('.tab').forEach(el => {
@@ -121,11 +121,22 @@ function getVoteState(votes, user) {
   return 0;
 }
 
+/* ===== Date filter helper ===== */
+function filterByDate(posts, range) {
+  if (range === 'all') return posts;
+  const now = Date.now();
+  const ms = range === 'day' ? 86400000 : range === 'week' ? 604800000 : range === 'month' ? 2592000000 : 0;
+  return posts.filter(p => p.createdAt && (now - p.createdAt) <= ms);
+}
+
 /* ===== Feed ===== */
 function renderFeed() {
+  Loader.show('Загружаем ленту...');
   const container = $('content');
   const filter = STATE.currentFilter;
-  const posts = API.getPosts(filter);
+  const dateRange = STATE.currentDateRange;
+  let posts = API.getPosts(filter);
+  posts = filterByDate(posts, dateRange);
 
   container.innerHTML = `
     <div class="sort-bar">
@@ -133,15 +144,25 @@ function renderFeed() {
       <button class="sort-btn ${filter==='hot'?'active':''}" data-filter="hot">🔥 Горячие</button>
       <button class="sort-btn ${filter==='top'?'active':''}" data-filter="top">🏆 Топ</button>
     </div>
+    <div class="date-bar">
+      <button class="date-btn ${dateRange==='all'?'active':''}" data-range="all">📅 Всё время</button>
+      <button class="date-btn ${dateRange==='day'?'active':''}" data-range="day">Сегодня</button>
+      <button class="date-btn ${dateRange==='week'?'active':''}" data-range="week">Неделя</button>
+      <button class="date-btn ${dateRange==='month'?'active':''}" data-range="month">Месяц</button>
+    </div>
     <div id="feed-list"></div>`;
 
   qsa('.sort-btn').forEach(b => {
     b.addEventListener('click', () => { STATE.currentFilter = b.dataset.filter; renderFeed(); });
   });
+  qsa('.date-btn').forEach(b => {
+    b.addEventListener('click', () => { STATE.currentDateRange = b.dataset.range; renderFeed(); });
+  });
 
   const list = $('feed-list');
   if (posts.length === 0) {
     list.innerHTML = `<div class="empty-state"><div class="big-icon">📭</div><h3>Пока нет постов</h3><p style="color:var(--text2)">Создай первый!</p></div>`;
+    Loader.hide();
     return;
   }
 
@@ -151,6 +172,7 @@ function renderFeed() {
     const myVote = getVoteState(p, user ? user.username : null);
     return `<div class="post-card" data-id="${p.id}">
       <div class="post-title">${esc(p.title)}</div>
+      ${p.image ? `<img src="${esc(p.image)}" class="post-img" loading="lazy" onclick="event.stopPropagation();window.open(this.src)">` : ''}
       <div class="post-meta">
         <span>#${esc(p.community || 'general')}</span>
         <span>✍️ ${esc(p.author)}</span>
@@ -170,21 +192,20 @@ function renderFeed() {
   // Post click
   list.querySelectorAll('.post-card').forEach(el => {
     el.addEventListener('click', e => {
-      if (e.target.closest('.vote-btn')) return;
+      if (e.target.closest('.vote-btn') || e.target.closest('.post-img')) return;
       navigate('post', el.dataset.id);
     });
   });
 
   // Vote buttons
   list.querySelectorAll('.vote-btn').forEach(btn => {
-    btn.addEventListener('click', async e => {
+    btn.addEventListener('click', e => {
       e.stopPropagation();
-      const id = btn.dataset.id;
-      const type = btn.dataset.vote;
-      const res = API.votePost(id, type);
+      const res = API.votePost(btn.dataset.id, btn.dataset.vote);
       if (res.ok) renderFeed();
     });
   });
+  Loader.hide();
 }
 
 /* ===== Post Detail ===== */
@@ -200,6 +221,7 @@ function renderPostDetail(postId) {
   let html = `<div class="post-detail">
     <div class="post-title">${esc(post.title)}</div>
     <div class="post-meta"><span>#${esc(post.community || 'general')}</span> <span>✍️ ${esc(post.author)}</span> <span>🕐 ${timeAgo(post.createdAt)}</span></div>
+    ${post.image ? `<img src="${esc(post.image)}" class="post-img" style="max-height:400px;display:block;margin:10px 0" onclick="window.open(this.src)">` : ''}
     <div class="post-body">${esc(post.content)}</div>
     <div class="post-footer" style="border-top:1px solid var(--border);padding-top:8px">
       <div class="vote-group">
@@ -376,6 +398,7 @@ function renderCommunity(name) {
     const myVote = getVoteState(p, user ? user.username : null);
     return `<div class="post-card" data-id="${p.id}">
       <div class="post-title">${esc(p.title)}</div>
+      ${p.image ? `<img src="${esc(p.image)}" class="post-img" loading="lazy" onclick="event.stopPropagation();window.open(this.src)">` : ''}
       <div class="post-meta"><span>✍️ ${esc(p.author)}</span> <span>🕐 ${timeAgo(p.createdAt)}</span></div>
       <div class="post-footer">
         <div class="vote-group">
@@ -390,7 +413,7 @@ function renderCommunity(name) {
 
   list.querySelectorAll('.post-card').forEach(el => {
     el.addEventListener('click', e => {
-      if (e.target.closest('.vote-btn')) return;
+      if (e.target.closest('.vote-btn') || e.target.closest('.post-img')) return;
       navigate('post', el.dataset.id);
     });
   });
@@ -406,10 +429,18 @@ function renderCommunity(name) {
 /* ===== Create Post ===== */
 function renderCreatePost() {
   const comms = API.getCommunities();
+  let imageData = null;
+
   $('content').innerHTML = `
     <div class="create-form">
       <h2>✏️ Создать пост</h2>
       <input type="text" id="post-title" placeholder="Заголовок">
+      <div>
+        <button class="create-img-btn" id="img-btn">🖼️ Добавить изображение</button>
+        <input type="file" id="img-file" accept="image/*" style="display:none">
+        <img id="img-preview" class="img-preview">
+        <button class="img-remove-btn" id="img-remove" style="display:none">✕</button>
+      </div>
       <textarea id="post-content" placeholder="Текст поста... (поддерживает Markdown-разметку)"></textarea>
       <select id="post-community">
         <option value=""># general (основное)</option>
@@ -419,17 +450,40 @@ function renderCreatePost() {
       <p id="post-error" class="error-msg"></p>
     </div>`;
 
+  $('img-btn').addEventListener('click', () => $('img-file').click());
+  $('img-file').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { $('post-error').textContent = 'Максимум 2MB'; return; }
+    const reader = new FileReader();
+    reader.onload = ev => {
+      imageData = ev.target.result;
+      $('img-preview').src = imageData;
+      $('img-preview').style.display = 'block';
+      $('img-remove').style.display = 'inline-block';
+    };
+    reader.readAsDataURL(file);
+  });
+  $('img-remove').addEventListener('click', () => {
+    imageData = null;
+    $('img-preview').style.display = 'none';
+    $('img-remove').style.display = 'none';
+    $('img-file').value = '';
+  });
+
   $('post-submit').addEventListener('click', () => {
+    Loader.show('Публикуем пост...');
     const title = $('post-title').value.trim();
     const content = $('post-content').value.trim();
     const community = $('post-community').value;
-    if (!title) { $('post-error').textContent = 'Заголовок обязателен'; return; }
-    const res = API.createPost(title, content, community);
+    if (!title) { $('post-error').textContent = 'Заголовок обязателен'; Loader.hide(); return; }
+    const res = API.createPost(title, content, community, imageData);
     if (res.ok) {
       navigate('post', res.post.id);
     } else {
       $('post-error').textContent = res.err;
     }
+    Loader.hide();
   });
 }
 
@@ -482,6 +536,7 @@ function renderProfile() {
     const score = voteScore(p.upvotes, p.downvotes);
     return `<div class="post-card" data-id="${p.id}">
       <div class="post-title">${esc(p.title)}</div>
+      ${p.image ? `<img src="${esc(p.image)}" class="post-img" loading="lazy" onclick="event.stopPropagation();window.open(this.src)">` : ''}
       <div class="post-meta"><span>#${esc(p.community||'general')}</span> <span>🕐 ${timeAgo(p.createdAt)}</span></div>
       <div class="post-footer"><span>${score>0?'▲':score<0?'▼':''} ${score}</span> <span>💬 ${p.commentCount||0}</span></div>
     </div>`;
@@ -505,6 +560,7 @@ function renderSearch(query) {
         const score = voteScore(p.upvotes, p.downvotes);
         return `<div class="post-card" data-id="${p.id}">
           <div class="post-title">${esc(p.title)}</div>
+          ${p.image ? `<img src="${esc(p.image)}" class="post-img" loading="lazy" onclick="event.stopPropagation();window.open(this.src)">` : ''}
           <div class="post-meta"><span>#${esc(p.community||'general')}</span> <span>✍️ ${esc(p.author)}</span></div>
           <div class="post-footer"><span>${score} очков</span> <span>💬 ${p.commentCount||0}</span></div>
         </div>`;
@@ -515,7 +571,10 @@ function renderSearch(query) {
     el.addEventListener('click', () => navigate('community', el.dataset.comm));
   });
   $('content').querySelectorAll('.post-card').forEach(el => {
-    el.addEventListener('click', () => navigate('post', el.dataset.id));
+    el.addEventListener('click', e => {
+      if (e.target.closest('.post-img')) return;
+      navigate('post', el.dataset.id);
+    });
   });
 }
 

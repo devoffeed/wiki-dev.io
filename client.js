@@ -34,8 +34,8 @@ const API = {
   getPost(id) {
     return Server.getPost(id);
   },
-  createPost(title, content, community) {
-    return Server.createPost(title, content, community);
+  createPost(title, content, community, image) {
+    return Server.createPost(title, content, community, image);
   },
   votePost(id, type) {
     return Server.votePost(id, type);

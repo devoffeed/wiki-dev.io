@@ -157,13 +157,13 @@ const Server = (() => {
       } catch(e) { console.error('getPost error:', e); return null; }
     },
 
-    createPost(title, content, community) {
+    createPost(title, content, community, image) {
       const user = getCurrentUser();
       if (!user) return { ok: false, err: 'Не авторизован' };
       if (!title.trim()) return { ok: false, err: 'Заголовок обязателен' };
       const db = loadDB();
       const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-      db.posts[id] = { id, title: title.trim(), content: content.trim(), author: user, community: community || 'general', createdAt: Date.now(), upvotes: [], downvotes: [], upvoteCount: 0, downvoteCount: 0 };
+      db.posts[id] = { id, title: title.trim(), content: content.trim(), author: user, community: community || 'general', createdAt: Date.now(), upvotes: [], downvotes: [], upvoteCount: 0, downvoteCount: 0, image: image || null };
       if (!db.comments) db.comments = {};
       db.comments[id] = [];
       saveDB(db);
