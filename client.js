@@ -1,7 +1,10 @@
 /* ===== Client.js — API client ===== */
 const API = {
-  login(username) {
-    return Server.login(username);
+  login(username, password) {
+    return Server.login(username, password);
+  },
+  register(username, password) {
+    return Server.register(username, password);
   },
   logout() {
     Server.logout();

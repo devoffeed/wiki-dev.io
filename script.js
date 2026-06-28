@@ -5,21 +5,44 @@ const qsa = (s, ctx) => (ctx || document).querySelectorAll(s);
 
 let STATE = { currentView: 'feed', currentFilter: 'new', currentPostId: null, currentCommunity: null };
 
-/* Auth */
-$('form-auth').addEventListener('submit', e => {
+/* Auth tabs */
+document.querySelectorAll('.tab').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    $('form-login').style.display = el.dataset.form === 'login' ? '' : 'none';
+    $('form-register').style.display = el.dataset.form === 'register' ? '' : 'none';
+  });
+});
+
+function authSuccess(username) {
+  $('auth-screen').style.display = 'none';
+  $('app').style.display = '';
+  $('user-badge').textContent = username;
+  try { renderSidebar(); } catch(e) { console.error(e); }
+  try { renderFeed(); } catch(e) { console.error('Feed error:', e); }
+}
+
+/* Login */
+$('form-login').addEventListener('submit', e => {
   e.preventDefault();
-  const username = $('auth-user').value.trim();
-  if (!username) return;
-  const res = API.login(username);
-  if (res.ok) {
-    $('auth-screen').style.display = 'none';
-    $('app').style.display = '';
-    $('user-badge').textContent = username;
-    renderSidebar();
-    renderFeed();
-  } else {
-    $('auth-error').textContent = res.err;
-  }
+  const username = $('login-user').value.trim();
+  const password = $('login-pass').value;
+  const res = API.login(username, password);
+  if (res.ok) authSuccess(username);
+  else $('login-error').textContent = res.err;
+});
+
+/* Register */
+$('form-register').addEventListener('submit', e => {
+  e.preventDefault();
+  const username = $('reg-user').value.trim();
+  const password = $('reg-pass').value;
+  const confirm = $('reg-confirm').value;
+  if (password !== confirm) { $('reg-error').textContent = 'Пароли не совпадают'; return; }
+  const res = API.register(username, password);
+  if (res.ok) authSuccess(username);
+  else $('reg-error').textContent = res.err;
 });
 
 /* Logout */
@@ -27,8 +50,9 @@ $('btn-logout').addEventListener('click', () => {
   API.logout();
   $('app').style.display = 'none';
   $('auth-screen').style.display = '';
-  $('auth-user').value = '';
-  $('auth-error').textContent = '';
+  $('login-user').value = ''; $('login-pass').value = '';
+  $('reg-user').value = ''; $('reg-pass').value = ''; $('reg-confirm').value = '';
+  $('login-error').textContent = ''; $('reg-error').textContent = '';
 });
 
 /* Navigation */

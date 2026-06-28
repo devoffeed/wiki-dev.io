@@ -26,10 +26,10 @@ const Server = (() => {
 
   function loadDB() {
     const raw = localStorage.getItem(STORAGE);
-    if (!raw) return { posts: [], users: {}, communities: {} };
+    if (!raw) return { posts: {}, users: {}, communities: {} };
     const json = xorDecode(raw, KEY);
-    if (!json) return { posts: [], users: {}, communities: {} };
-    try { return JSON.parse(json); } catch { return { posts: [], users: {}, communities: {} }; }
+    if (!json) return { posts: {}, users: {}, communities: {} };
+    try { return JSON.parse(json); } catch { return { posts: {}, users: {}, communities: {} }; }
   }
 
   function saveDB(db) {
@@ -48,19 +48,36 @@ const Server = (() => {
     else sessionStorage.removeItem(SESSION);
   }
 
+  function hashPass(pass) {
+    let h = 0;
+    for (let i = 0; i < pass.length; i++) { h = ((h << 5) - h) + pass.charCodeAt(i); h |= 0; }
+    return 'p' + Math.abs(h).toString(36);
+  }
+
   // API methods
   return {
     // Auth
-    login(username) {
+    register(username, password) {
       const db = loadDB();
       username = username.trim().toLowerCase();
-      if (!username) return { ok: false, err: 'Введите никнейм' };
-      if (!db.users[username]) {
-        db.users[username] = { username, createdAt: Date.now(), joinedComms: [] };
-        saveDB(db);
-      }
+      if (!username || !password) return { ok: false, err: 'Заполните все поля' };
+      if (password.length < 3) return { ok: false, err: 'Пароль min 3 символа' };
+      if (db.users[username]) return { ok: false, err: 'Пользователь уже существует' };
+      db.users[username] = { username, password: hashPass(password), createdAt: Date.now(), joinedComms: [] };
+      saveDB(db);
       setCurrentUser(username);
       return { ok: true, user: db.users[username] };
+    },
+
+    login(username, password) {
+      const db = loadDB();
+      username = username.trim().toLowerCase();
+      if (!username || !password) return { ok: false, err: 'Заполните все поля' };
+      const user = db.users[username];
+      if (!user) return { ok: false, err: 'Пользователь не найден' };
+      if (user.password !== hashPass(password)) return { ok: false, err: 'Неверный пароль' };
+      setCurrentUser(username);
+      return { ok: true, user };
     },
 
     logout() {
@@ -119,19 +136,25 @@ const Server = (() => {
 
     // Posts
     getPosts(filter = 'all', community = null) {
-      const db = loadDB();
-      let posts = Object.values(db.posts).sort((a, b) => b.createdAt - a.createdAt);
-      if (community) posts = posts.filter(p => p.community === community);
-      if (filter === 'hot') posts.sort((a, b) => (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes));
-      if (filter === 'top') posts.sort((a, b) => (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes));
-      return posts.map(p => ({ ...p, commentCount: (db.comments && db.comments[p.id] ? db.comments[p.id].length : 0) }));
+      try {
+        const db = loadDB();
+        if (!db.posts) db.posts = {};
+        let posts = Object.values(db.posts).sort((a, b) => b.createdAt - a.createdAt);
+        if (community) posts = posts.filter(p => p.community === community);
+        if (filter === 'hot') posts.sort((a, b) => (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes));
+        if (filter === 'top') posts.sort((a, b) => (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes));
+        return posts.map(p => ({ ...p, commentCount: (db.comments && db.comments[p.id] ? db.comments[p.id].length : 0) }));
+      } catch(e) { console.error('getPosts error:', e); return []; }
     },
 
     getPost(id) {
-      const db = loadDB();
-      const post = db.posts[id];
-      if (!post) return null;
-      return { ...post, comments: (db.comments && db.comments[id]) || [] };
+      try {
+        const db = loadDB();
+        if (!db.posts) db.posts = {};
+        const post = db.posts[id];
+        if (!post) return null;
+        return { ...post, comments: (db.comments && db.comments[id]) || [] };
+      } catch(e) { console.error('getPost error:', e); return null; }
     },
 
     createPost(title, content, community) {

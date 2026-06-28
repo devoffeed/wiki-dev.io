@@ -13,6 +13,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;
 .field label{display:block;font-size:13px;color:var(--text2);margin-bottom:4px}
 .field input{width:100%;padding:11px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:14px;outline:none;transition:.2s}
 .field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(108,92,231,.2)}
+.tabs{display:flex;margin-bottom:20px;border-radius:8px;overflow:hidden;border:1px solid var(--border)}
+.tab{flex:1;padding:10px;background:transparent;color:var(--text2);border:none;cursor:pointer;font-size:14px;transition:.2s}
+.tab.active{background:var(--accent);color:#fff;font-weight:600}
 .btn-primary{width:100%;padding:12px;background:linear-gradient(135deg,var(--accent),#a29bfe);color:#fff;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:600;cursor:pointer;transition:.3s}
 .btn-primary:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(108,92,231,.3)}
 .error-msg{color:var(--orange);font-size:13px;margin-top:8px;text-align:center;min-height:20px}
